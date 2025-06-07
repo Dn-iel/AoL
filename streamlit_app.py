@@ -20,7 +20,7 @@ def load_model_from_drive():
 # Load dataset lengkap dari CSV
 @st.cache_data
 def load_full_dataset():
-    df = pd.read_csv("netflix_preprocessed_minimal.csv")  # Ganti path jika perlu
+    df = pd.read_csv("netflix_preprocessed.csv")  # Ganti path jika perlu
     return df
 
 # Fungsi rekomendasi manual
