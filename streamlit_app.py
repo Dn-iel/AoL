@@ -12,14 +12,14 @@ DATASET_PATH = "netflix_preprocessed.csv"  # Pastikan file ini tersedia
 # === DOWNLOAD & LOAD ===
 @st.cache_resource
 def load_content_recommender():
-    path = "content_recommender.pkl"
+    path = "recommender.pkl"
     if not os.path.exists(path):
         gdown.download(f"https://drive.google.com/uc?id={RECOMMENDER_FILE_ID}", path, quiet=False)
     return joblib.load(path)
 
 @st.cache_resource
 def load_similarity_data():
-    path = "similarity_data.pkl"
+    path = "data_similarity.pkl"
     if not os.path.exists(path):
         gdown.download(f"https://drive.google.com/uc?id={SIMILARITY_FILE_ID}", path, quiet=False)
     return joblib.load(path)
