@@ -4,26 +4,32 @@ import gdown
 import os
 import pandas as pd
 
-# === SETTING FILE ID GOOGLE DRIVE ===
-RECOMMENDER_FILE_ID = "1T51NDCDCiCgOgpXzZ7oVodFcJHeTP4ST"  # content_recommender.pkl
-SIMILARITY_FILE_ID = "1fSDXnCN_b1AjZmrFQ-CjLqX9snuRf9cK"   # similarity_data.pkl
-DATASET_PATH = "netflix_preprocessed.csv"  # Pastikan file ini tersedia
+# === Google Drive file IDs ===
+RECOMMENDER_FILE_ID = "1iKVh9RmfsBcUzC_xwvfMv5eJwckgVrrL"  # your recommender.pkl
+SIMILARITY_FILE_ID = "1p1rY2KoUDbH8ujIAuxb9Nh5GFIckDlwV"   # your similarity_data.pkl
+DATASET_PATH = "netflix_preprocessed.csv"  # Pastikan file CSV ini sudah tersedia lokal
 
-# === DOWNLOAD & LOAD ===
+# === Download files from Google Drive if not exist ===
 @st.cache_resource
-def load_content_recommender():
-    path = "recommender.pkl"
-    if not os.path.exists(path):
-        gdown.download(f"https://drive.google.com/uc?id={RECOMMENDER_FILE_ID}", path, quiet=False)
+def download_file(file_id, filename):
+    if not os.path.exists(filename):
+        url = f"https://drive.google.com/uc?id={file_id}"
+        gdown.download(url, filename, quiet=False)
+    return filename
+
+# === Load pickle recommender (class instance) ===
+@st.cache_resource
+def load_recommender():
+    path = download_file(RECOMMENDER_FILE_ID, "recommender.pkl")
     return joblib.load(path)
 
+# === Load similarity data dict ===
 @st.cache_resource
 def load_similarity_data():
-    path = "data_similarity.pkl"
-    if not os.path.exists(path):
-        gdown.download(f"https://drive.google.com/uc?id={SIMILARITY_FILE_ID}", path, quiet=False)
+    path = download_file(SIMILARITY_FILE_ID, "similarity_data.pkl")
     return joblib.load(path)
 
+# === Load Netflix dataset ===
 @st.cache_data
 def load_full_dataset():
     return pd.read_csv(DATASET_PATH)
@@ -35,7 +41,6 @@ columns_to_show = [
     'duration_minutes', 'duration_seasons'
 ]
 
-# === MAIN FUNCTION ===
 def main():
     st.title("Netflix Recommender System 🎬")
     st.markdown("Enter a Netflix movie title below to get similar movie recommendations.")
@@ -43,18 +48,18 @@ def main():
     title = st.text_input("Enter a movie title:")
     search_clicked = st.button("Get Recommended Movies")
 
-    # Load resources
-    content_recommender = load_content_recommender()
-    similarity_data = load_similarity_data()
+    # Load models and data
+    recommender = load_recommender()               # class instance with method recommend()
+    similarity_data = load_similarity_data()        # dict with cosine_similarities, indices, netflix_title
     full_df = load_full_dataset()
 
-    # Extract components
     cosine_similarities = similarity_data["cosine_similarities"]
     indices = similarity_data["indices"]
     netflix_title = similarity_data["netflix_title"]
 
     if search_clicked and title:
         if title in set(netflix_title):
+            # Tampilkan detail movie yang dicari
             movie_details_df = full_df[full_df['title'] == title][columns_to_show]
             if movie_details_df.empty:
                 st.warning("Details not found in the full dataset.")
@@ -62,22 +67,22 @@ def main():
                 st.subheader("Selected Movie Details")
                 st.dataframe(movie_details_df, use_container_width=True)
 
+            # Tampilkan rekomendasi
             st.subheader("Recommended Titles:")
             try:
-                # Panggil fungsi dengan 3 parameter
-                recommendations = content_recommender(title, cosine_similarities, indices)
-                for i, rec_title in enumerate(recommendations, 1):
-                    with st.expander(f"{i}. {rec_title}"):
-                        rec_details_df = full_df[full_df['title'] == rec_title][columns_to_show]
-                        if not rec_details_df.empty:
-                            st.dataframe(rec_details_df, use_container_width=True)
-                        else:
-                            st.warning(f"Details for '{rec_title}' not found.")
+                recommendations_df = recommender.recommend(title)
+                for i, (_, row) in enumerate(recommendations_df.iterrows(), start=1):
+                    with st.expander(f"{i}. {row['title']}"):
+                        # Tampilkan kolom yang ingin ditampilkan untuk setiap rekomendasi
+                        st.markdown(f"""
+                        **Genre:** {row['listed_in']}  
+                        **Rating:** {row['rating']}  
+                        **Description:** {row['description']}
+                        """)
             except Exception as e:
                 st.error(f"❌ Error while generating recommendations: {e}")
         else:
             st.error("❌ Movie title not found in model title list.")
 
-# Run main
 if __name__ == "__main__":
     main()
