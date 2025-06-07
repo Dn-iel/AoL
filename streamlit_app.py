@@ -21,10 +21,12 @@ def load_model_from_drive():
 @st.cache_data
 def load_full_dataset():
     df = pd.read_csv("netflix_preprocessed.csv")  # Ganti path jika perlu
+    df.columns = df.columns.str.strip()  # Hilangkan spasi pada nama kolom
     return df
 
-# Fungsi rekomendasi manual
+# Fungsi rekomendasi
 def content_recommender(title, cosine_similarities, indices, netflix_title, top_n=5):
+    title = title.strip()
     if title not in indices:
         return []
 
@@ -39,52 +41,47 @@ def content_recommender(title, cosine_similarities, indices, netflix_title, top_
 # Kolom yang akan ditampilkan
 columns_to_show = ['title', 'listed_in', 'description', 'rating']
 
-def main():
-    # Load model dan data
-    model_data = load_model_from_drive()
-    netflix_title_series = model_data["netflix_title"]  # Series of titles
-    cosine_similarities = model_data["cosine_similarities"]
-    indices = model_data["indices"]
+# Load model dan data
+model_data = load_model_from_drive()
+netflix_title_series = model_data["netflix_title"]
+cosine_similarities = model_data["cosine_similarities"]
+indices = model_data["indices"]
 
-    full_df = load_full_dataset()
+full_df = load_full_dataset()
 
-    # UI Streamlit
-    st.title("Netflix Movie Recommender")
-    st.markdown("Enter a Netflix movie title below to get similar movie recommendations.")
+# UI Streamlit
+st.title("Netflix Movie Recommender")
+st.markdown("Enter a Netflix movie title below to get similar movie recommendations.")
 
-    title = st.text_input("Enter a movie title:")
-    search_clicked = st.button("Get Recommended Movies")
+title = st.text_input("Enter a movie title:")
+search_clicked = st.button("Get Recommended Movies")
 
-    if search_clicked and title:
-        # Cek apakah title ada di netflix_title_series
-        if title in set(netflix_title_series):
-            # Ambil detail dari full_df
-            movie_details_df = full_df[full_df['title'] == title][columns_to_show]
-            if movie_details_df.empty:
-                st.warning("Details not found in the full dataset.")
-            else:
-                st.subheader("Selected Movie Details")
-                st.dataframe(movie_details_df, use_container_width=True)
-
-            # Rekomendasi
-            st.subheader("Recommended Titles:")
-            recommendations = content_recommender(
-                title,
-                cosine_similarities,
-                indices,
-                netflix_title_series
-            )
-
-            for i, rec_title in enumerate(recommendations, 1):
-                with st.expander(f"{i}. {rec_title}"):
-                    rec_details_df = full_df[full_df['title'] == rec_title][columns_to_show]
-                    if not rec_details_df.empty:
-                        st.dataframe(rec_details_df, use_container_width=True)
-                    else:
-                        st.warning(f"Details for '{rec_title}' not found.")
+if search_clicked and title:
+    title = title.strip()  # Hilangkan spasi ekstra dari input
+    if title in set(netflix_title_series):
+        # Tampilkan detail film utama
+        match = full_df[full_df['title'].str.strip() == title]
+        if not match.empty:
+            st.subheader("Selected Movie Details")
+            st.dataframe(match[columns_to_show], use_container_width=True)
         else:
-            st.error("❌ Movie title not found in model title list.")
+            st.warning("Details not found in the full dataset.")
 
-# Panggil main jika dijalankan sebagai skrip
-if __name__ == "__main__":
-    main()
+        # Tampilkan rekomendasi
+        st.subheader("Recommended Titles:")
+        recommendations = content_recommender(
+            title,
+            cosine_similarities,
+            indices,
+            netflix_title_series
+        )
+
+        for i, rec_title in enumerate(recommendations, 1):
+            with st.expander(f"{i}. {rec_title}"):
+                rec_match = full_df[full_df['title'].str.strip() == rec_title.strip()]
+                if not rec_match.empty:
+                    st.dataframe(rec_match[columns_to_show].head(1), use_container_width=True)
+                else:
+                    st.warning(f"Details for '{rec_title}' not found.")
+    else:
+        st.error("❌ Movie title not found in model title list.")
