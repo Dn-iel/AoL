@@ -7,7 +7,7 @@ import pandas as pd
 # Load model dari Google Drive
 @st.cache_resource
 def load_model_from_drive():
-    file_id = "1Y6lvZEMwZ9-fMe3TbGZNYDXBklhrOJji"
+    file_id = "1Y6lvZEMwZ9-fMe3TbGZNYDXBklhrOJji" 
     output_path = "recommender_model2.pkl"
 
     if not os.path.exists(output_path):
