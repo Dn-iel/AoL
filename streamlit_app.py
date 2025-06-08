@@ -1,5 +1,5 @@
 import streamlit as st
-import dill as pickle
+import pickle
 import gdown
 import os
 import pandas as pd
@@ -7,8 +7,8 @@ import pandas as pd
 # Load model dari Google Drive
 @st.cache_resource
 def load_model_from_drive():
-    file_id = "1uARTcSmf--15RMbvBxwP7TJFONlISYvK"
-    output_path = "recommender_model.pkl"
+    file_id = "1Y6lvZEMwZ9-fMe3TbGZNYDXBklhrOJji"
+    output_path = "recommender_model2.pkl"
 
     if not os.path.exists(output_path):
         url = f"https://drive.google.com/uc?id={file_id}"
@@ -17,14 +17,13 @@ def load_model_from_drive():
     with open(output_path, "rb") as f:
         return pickle.load(f)
 
-# Load dataset lengkap dari CSV
+# Load dataset setelah proses preprocessing
 @st.cache_data
 def load_full_dataset():
-    df = pd.read_csv("netflix_preprocessed.csv")  # Ganti path jika perlu
+    df = pd.read_csv("netflix_preprocessed.csv")
     return df
 
-# Fungsi rekomendasi manual
-def content_recommender(title, cosine_similarities, indices, netflix_title, top_n=5):
+def content_recommender(title, cosine_similarities, indices, df, top_n=5):
     if title not in indices:
         return []
 
@@ -34,9 +33,10 @@ def content_recommender(title, cosine_similarities, indices, netflix_title, top_
     sim_scores = sim_scores[1:top_n + 1]  # Skip movie itu sendiri
 
     recommended_indices = [i[0] for i in sim_scores]
-    return netflix_title.iloc[recommended_indices].tolist()
+    displayed_column = ['title', 'listed_in', 'description', 'rating']
+    return df.iloc[recommended_indices][displayed_column]
 
-# Kolom yang akan ditampilkan
+
 columns_to_show = ['title', 'listed_in', 'description', 'rating']
 
 def main():
@@ -48,12 +48,13 @@ def main():
 
     full_df = load_full_dataset()
 
-    # UI Streamlit
     st.title("Netflix Movie Recommender")
     st.markdown("Enter a Netflix movie title below to get similar movie recommendations.")
 
-    title = st.text_input("Enter a movie title:")
+    user_input = st.text_input("Enter a movie title:")
+    title = user_input.title() # untuk memastikan input-an dari user selalu diawali dengan huruf kapital, sekalipun dengan 2 kata.
     search_clicked = st.button("Get Recommended Movies")
+
 
     if search_clicked and title:
         # Cek apakah title ada di netflix_title_series
@@ -72,19 +73,17 @@ def main():
                 title,
                 cosine_similarities,
                 indices,
-                netflix_title_series
+                full_df
             )
-
-            for i, rec_title in enumerate(recommendations, 1):
-                with st.expander(f"{i}. {rec_title}"):
-                    rec_details_df = full_df[full_df['title'] == rec_title][columns_to_show]
-                    if not rec_details_df.empty:
-                        st.dataframe(rec_details_df, use_container_width=True)
-                    else:
-                        st.warning(f"Details for '{rec_title}' not found.")
+            for _, row in recommendations.iterrows():
+                with st.expander(f"🎬 {row['title']}"):
+                    st.markdown(f"""
+                    Genre: {row['listed_in']}  
+                    Rating: {row['rating']}  
+                    Description: {row['description']}
+                    """)
         else:
-            st.error("❌ Movie title not found in model title list.")
+            st.error("Movie title not found in model title list.")
 
-# Panggil main jika dijalankan sebagai skrip
 if __name__ == "__main__":
     main()
